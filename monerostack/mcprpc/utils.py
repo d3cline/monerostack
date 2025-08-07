@@ -479,17 +479,22 @@ def fetch_nodes_from_monero_fail() -> List[MoneroNode]:
         return get_fallback_nodes()
 
 
-# Load nodes from configuration file
 # This ensures we always use the most up-to-date node list
-def _load_default_nodes():
-    """Load default nodes, with fallback if config is not available."""
-    try:
-        return load_nodes_from_config()
-    except:
-        return get_fallback_nodes()
+def load_nodes_from_config() -> List[MoneroNode]:
+    """Load nodes using the new dynamic cache system."""
+    # Try to get nodes from the cache
+    nodes = _node_cache.get_all_nodes()
+    if nodes:
+        logger.info(f"Loaded {len(nodes)} nodes from dynamic cache")
+        return nodes
+    
+    # Fallback to hardcoded nodes
+    logger.info("Using hardcoded fallback nodes")
+    return get_fallback_nodes()
 
-# Default nodes loaded from configuration
-DEFAULT_MONERO_NODES = _load_default_nodes()
+
+# Default nodes loaded from configuration (but cache system preferred)
+DEFAULT_MONERO_NODES = load_nodes_from_config()
 
 
 class MoneroNodeManager:
@@ -561,7 +566,7 @@ class MoneroNodeManager:
         
         return None
     
-    def reset_to_first_node(self):
+    def reset_to_random_node(self):
         """Reset to a random node (maintains privacy)."""
         if self._use_cache:
             self._current_node = _node_cache.get_random_node()
@@ -786,9 +791,9 @@ class MCPTransport:
                     logger.error(f"Monero RPC error in {method}: {error_msg} (code: {error_code})")
                     raise MoneroRPCError(error_msg, error_code, error_data)
                 
-                # Success! Reset to first node for next time
-                if self.node_manager and current_node_name != self.node_manager.nodes[0].name:
-                    self.node_manager.reset_to_first_node()
+                # Success! Reset to a random node for next time to maintain privacy
+                if self.node_manager:
+                    self.node_manager.reset_to_random_node()
                     self.config = self.node_manager.get_current_node().to_rpc_config()
                     if self._session:
                         self._session.close()
