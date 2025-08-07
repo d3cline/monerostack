@@ -1,6 +1,7 @@
-# this is a proof of concept, you have been warned!!!
 # Why? this is why...
 <img width="588" height="622" alt="image" src="https://github.com/user-attachments/assets/9f6c5504-3a95-4631-99f0-85edb25b8e84" />
+
+# This is stil being tested, and testnet/mainnet is being worked on. Privacy tech options for MCP are being developed and not yet complete. Send money and debug at your own risk!
 
 # Django MCP ↔ Monero Bridge
 
