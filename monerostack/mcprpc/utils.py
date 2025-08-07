@@ -368,15 +368,15 @@ def get_testnet_nodes() -> List[MoneroNode]:
     """A list of public Monero testnet nodes."""
     return [
         MoneroNode(
-            name="community-nodes-testnet",
-            url="http://testnet.community.nodes.monero.org:28081/json_rpc",
-            description="Community-provided testnet node",
+            name="moneroworld-testnet",
+            url="http://testnet.moneroworld.com:28081/json_rpc",
+            description="Testnet node by MoneroWorld",
             priority=0
         ),
         MoneroNode(
-            name="ditatompel-testnet",
-            url="http://testnet.xmr.ditatompel.com:28081/json_rpc",
-            description="Testnet node by ditatompel",
+            name="community-testnet-2",
+            url="https://testnet.community.nodes.monero.org:28081/json_rpc",
+            description="Community-provided testnet node (SSL)",
             priority=1
         ),
     ]

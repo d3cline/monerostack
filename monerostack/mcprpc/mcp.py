@@ -40,21 +40,6 @@ class MoneroAPI:
         except Exception as e:
             logger.error(f"RPC call failed for method {method}: {e}")
             raise ConnectionError(f"Failed to connect to Monero RPC server: {e}") from e
-
-    def get_balance(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("get_balance", data)
-
-    def get_address(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("get_address", data)
-
-    def create_address(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("create_address", data)
-
-    def transfer(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("transfer", data)
-
-    def get_transfers(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("get_transfers", data)
     
     def get_info(self, data: Dict[str, Any] = None) -> dict:
         """Get general information about the state of Monero daemon."""
@@ -84,241 +69,60 @@ class MoneroTools(MCPToolset):
         
         Args:
             custom_nodes: Optional list of custom MoneroNode instances.
-                         If None, uses default top 3 popular nodes.
+                         If None, uses default mainnet nodes.
             **kwargs: Additional arguments passed by MCP framework
         """
         super().__init__()
         self._custom_nodes = custom_nodes
         self._api_instance = None
-        self._network = "mainnet"
 
     def monero(
         self,
-        action: Literal["get_balance", "get_address", "create_address", "transfer", "get_transfers", "get_info", "get_height", "get_last_block_header", "get_block"],
+        action: Literal["get_info", "get_height", "get_last_block_header", "get_block", "get_node_status"],
         payload: Any | None = None,
-        network: str = "mainnet",
     ):
         """
         ---
         name: monero
         description: |
-            Manages a Monero wallet by wrapping the monero-wallet-rpc JSON-RPC API.
-            This tool allows for checking balances, creating addresses, sending funds,
-            and viewing transaction history. It connects to multiple Monero RPC servers
-            with automatic failover for improved reliability.
+            Monero daemon RPC client with multi-node failover for blockchain data.
 
         parameters:
             type: object
             properties:
                 action:
                     type: string
-                    enum: [get_balance, get_address, create_address, transfer, get_transfers, get_info, get_height, get_last_block_header, get_block]
+                    enum: [get_info, get_height, get_last_block_header, get_block, get_node_status]
                 payload:
                     type: [object, "null"]
-                network:
-                    type: string
-                    enum: ["mainnet", "testnet"]
-                    default: "mainnet"
-                    description: "The Monero network to use (mainnet or testnet)."
             required: [action]
 
         actions:
-            get_balance:
-                summary: Get the wallet's balance.
-                payload:
-                    type: object
-                    properties:
-                        account_index: { type: integer, description: "Index of the account to query.", default: 0 }
-                response:
-                    $ref: "#/components/schemas/Balance"
-            get_address:
-                summary: Get the wallet's primary address and subaddresses for an account.
-                payload:
-                    type: object
-                    properties:
-                        account_index: { type: integer, description: "Index of the account.", default: 0 }
-                response:
-                    $ref: "#/components/schemas/AddressInfo"
-            create_address:
-                summary: Create a new subaddress for an account.
-                payload:
-                    type: object
-                    properties:
-                        account_index: { type: integer, description: "Index of the account to create the address in.", default: 0 }
-                        label: { type: string, description: "A label for the new address." }
-                    required: [account_index]
-                response:
-                    $ref: "#/components/schemas/Subaddress"
-            transfer:
-                summary: Send Monero to one or more destinations.
-                payload:
-                    type: object
-                    properties:
-                        destinations:
-                            type: array
-                            items:
-                                type: object
-                                properties:
-                                    amount: { type: integer, description: "Amount in piconeros (1 XMR = 1e12 piconeros)." }
-                                    address: { type: string, description: "Destination public address." }
-                                required: [amount, address]
-                        priority: { type: integer, description: "Transaction priority (0-3 for unimportant, normal, elevated, priority).", default: 0 }
-                        mixin: { type: integer, description: "Number of decoys to use.", default: 10 }
-                        unlock_time: { type: integer, description: "Number of blocks before the transaction can be spent.", default: 0 }
-                    required: [destinations]
-                response:
-                    $ref: "#/components/schemas/TransferResult"
-            get_transfers:
-                summary: Get a list of incoming and outgoing transfers.
-                payload:
-                    type: object
-                    properties:
-                        in: { type: boolean, default: true, description: "Include incoming transfers." }
-                        out: { type: boolean, default: true, description: "Include outgoing transfers." }
-                        pending: { type: boolean, default: true, description: "Include pending transfers." }
-                        failed: { type: boolean, default: true, description: "Include failed transfers." }
-                        pool: { type: boolean, default: true, description: "Include transfers in the transaction pool." }
-                response:
-                    $ref: "#/components/schemas/Transfers"
             get_info:
-                summary: Get general information about the state of Monero daemon.
-                payload:
-                    type: object
-                    properties: {}
-                response:
-                    $ref: "#/components/schemas/DaemonInfo"
+                summary: Get daemon info (height, difficulty, network status).
             get_height:
-                summary: Get the current blockchain height.
-                payload:
-                    type: object
-                    properties: {}
-                response:
-                    $ref: "#/components/schemas/BlockHeight"
+                summary: Get current blockchain height.
             get_last_block_header:
-                summary: Get the header of the last block.
-                payload:
-                    type: object
-                    properties: {}
-                response:
-                    $ref: "#/components/schemas/BlockHeader"
+                summary: Get latest block header.
             get_block:
-                summary: Get a block by height or hash.
+                summary: Get block by height or hash.
                 payload:
                     type: object
                     properties:
-                        height: { type: integer, description: "Block height to retrieve." }
-                        hash: { type: string, description: "Block hash to retrieve." }
-                response:
-                    $ref: "#/components/schemas/Block"
-
-        components:
-            schemas:
-                Balance:
-                    type: object
-                    properties:
-                        balance: { type: integer, description: "Total balance in piconeros." }
-                        unlocked_balance: { type: integer, description: "Unlocked balance in piconeros." }
-                        blocks_to_unlock: { type: integer }
-                AddressInfo:
-                    type: object
-                    properties:
-                        address: { type: string, description: "The main address for the account." }
-                        addresses:
-                            type: array
-                            items:
-                                $ref: "#/components/schemas/Subaddress"
-                Subaddress:
-                    type: object
-                    properties:
-                        address_index: { type: integer, description: "Index of the subaddress." }
-                        address: { type: string, description: "The subaddress." }
-                        label: { type: string }
-                        used: { type: boolean }
-                TransferResult:
-                    type: object
-                    properties:
-                        tx_hash: { type: string, description: "The transaction hash." }
-                        tx_key: { type: string, description: "The transaction secret key." }
-                        amount: { type: integer }
-                        fee: { type: integer }
-                Transfer:
-                    type: object
-                    properties:
-                        txid: { type: string }
-                        type: { type: string }
-                        amount: { type: integer }
-                        fee: { type: integer }
                         height: { type: integer }
-                        timestamp: { type: integer }
-                        unlock_time: { type: integer }
-                        destinations: { type: array, items: { type: object } }
-                Transfers:
-                    type: object
-                    properties:
-                        in: { type: array, items: { $ref: "#/components/schemas/Transfer" } }
-                        out: { type: array, items: { $ref: "#/components/schemas/Transfer" } }
-                        pending: { type: array, items: { $ref: "#/components/schemas/Transfer" } }
-                        failed: { type: array, items: { $ref: "#/components/schemas/Transfer" } }
-                        pool: { type: array, items: { $ref: "#/components/schemas/Transfer" } }
-                DaemonInfo:
-                    type: object
-                    properties:
-                        height: { type: integer, description: "Current blockchain height." }
-                        difficulty: { type: integer, description: "Current network difficulty." }
-                        target_height: { type: integer, description: "Target height for synchronization." }
-                        synchronized: { type: boolean, description: "Whether the daemon is synchronized." }
-                        nettype: { type: string, description: "Network type (mainnet, testnet, stagenet)." }
-                        tx_pool_size: { type: integer, description: "Number of transactions in the mempool." }
-                BlockHeight:
-                    type: object
-                    properties:
-                        height: { type: integer, description: "Current blockchain height." }
-                BlockHeader:
-                    type: object
-                    properties:
-                        block_header: { 
-                            type: object,
-                            properties: {
-                                height: { type: integer, description: "Block height." },
-                                hash: { type: string, description: "Block hash." },
-                                timestamp: { type: integer, description: "Block timestamp." },
-                                difficulty: { type: integer, description: "Block difficulty." },
-                                reward: { type: integer, description: "Block reward in piconeros." }
-                            }
-                        }
-                Block:
-                    type: object
-                    properties:
-                        blob: { type: string, description: "Hex-encoded block data." }
-                        json: { type: string, description: "JSON-formatted block data." }
-                        block_header: {
-                            type: object,
-                            properties: {
-                                height: { type: integer, description: "Block height." },
-                                hash: { type: string, description: "Block hash." },
-                                timestamp: { type: integer, description: "Block timestamp." },
-                                difficulty: { type: integer, description: "Block difficulty." },
-                                reward: { type: integer, description: "Block reward in piconeros." }
-                            }
-                        }
-        ...
+                        hash: { type: string }
+            get_node_status:
+                summary: Get multi-node connection status.
         """
-        # If network changes, invalidate the API instance to reconnect
-        if self._network != network:
-            self._network = network
-            self._api_instance = None
+        logger.info(f"monero tool called with action: {action} and payload: {payload}")
         
         # Create a dispatch table for API calls
         dispatch = {
-            "get_balance":    lambda p: self._api().get_balance(p),
-            "get_address":    lambda p: self._api().get_address(p),
-            "create_address": lambda p: self._api().create_address(p),
-            "transfer":       lambda p: self._api().transfer(p),
-            "get_transfers":  lambda p: self._api().get_transfers(p),
             "get_info":       lambda p: self._api().get_info(),
             "get_height":     lambda p: self._api().get_height(),
             "get_last_block_header": lambda p: self._api().get_last_block_header(),
             "get_block":      lambda p: self._api().get_block(p),
+            "get_node_status": lambda p: self.get_node_status(),
         }
         
         # Get the function from the dispatch table and call it
@@ -328,10 +132,15 @@ class MoneroTools(MCPToolset):
             raise ValueError(f"Invalid action: {action}")
             
         # For actions that don't take a payload, call them without one
-        if action in ["get_info", "get_height", "get_last_block_header"]:
+        if action in ["get_info", "get_height", "get_last_block_header", "get_node_status"]:
             return api_call(None)
         else:
             return api_call(payload or {})
+
+    def get_block_by_height(self, height: int) -> Dict[str, Any]:
+        """A direct method to get a block by height for debugging."""
+        api = self._api()
+        return api.get_block({"height": height})
 
     def get_node_status(self) -> Dict[str, Any]:
         """Get information about configured nodes and current status with connectivity check."""
@@ -514,11 +323,8 @@ class MoneroTools(MCPToolset):
         if self._api_instance is None:
             nodes = self._custom_nodes
             if not nodes:
-                # No custom nodes, use default from utils
+                # No custom nodes, use default mainnet nodes
                 from . import utils
-                if self._network == "testnet":
-                    nodes = utils.get_testnet_nodes()
-                else:
-                    nodes = utils.load_nodes_from_config()
+                nodes = utils.load_nodes_from_config()
             self._api_instance = MoneroAPI(nodes=nodes)
         return self._api_instance
