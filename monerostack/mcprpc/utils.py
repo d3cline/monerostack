@@ -25,7 +25,7 @@ logger = logging.getLogger("mcp.transport")
 class MoneroRPCConfig:
     """Configuration for Monero RPC connections."""
     host: str = "127.0.0.1"
-    port: int = 28088
+    port: int = 18081  # Default daemon port
     path: str = "/json_rpc"
     scheme: str = "http"
     username: Optional[str] = None
@@ -33,6 +33,7 @@ class MoneroRPCConfig:
     timeout: int = 8  # Reduced from 10 to 8 seconds for faster failover
     max_retries: int = 1  # Reduced from 2 to 1 retry for quicker failover
     backoff_factor: float = 0.3  # Reduced for quicker failover
+    rpc_type: str = "daemon"  # "daemon" or "wallet"
     
     @property
     def url(self) -> str:
@@ -49,7 +50,7 @@ class MoneroRPCConfig:
         """Create configuration from environment variables."""
         return cls(
             host=os.getenv("MONERO_RPC_HOST", "127.0.0.1"),
-            port=int(os.getenv("MONERO_RPC_PORT", "28088")),
+            port=int(os.getenv("MONERO_RPC_PORT", "18081")),  # Changed default to daemon port
             path=os.getenv("MONERO_RPC_PATH", "/json_rpc"),
             scheme=os.getenv("MONERO_RPC_SCHEME", "http"),
             username=os.getenv("MONERO_RPC_USER"),
@@ -57,20 +58,28 @@ class MoneroRPCConfig:
             timeout=int(os.getenv("MONERO_RPC_TIMEOUT", "8")),  # Reduced default timeout
             max_retries=int(os.getenv("MONERO_RPC_MAX_RETRIES", "1")),  # Reduced retries
             backoff_factor=float(os.getenv("MONERO_RPC_BACKOFF_FACTOR", "0.3")),
+            rpc_type=os.getenv("MONERO_RPC_TYPE", "daemon"),
         )
     
     @classmethod
-    def from_url(cls, url: str) -> "MoneroRPCConfig":
+    def from_url(cls, url: str, rpc_type: str = "daemon") -> "MoneroRPCConfig":
         """Create configuration from a URL string."""
         parsed = urllib.parse.urlparse(url)
+        
+        # Determine default port based on RPC type
+        if rpc_type == "wallet":
+            default_port = 18082
+        else:
+            default_port = 18081
         
         return cls(
             scheme=parsed.scheme or "http",
             host=parsed.hostname or "127.0.0.1",
-            port=parsed.port or (443 if parsed.scheme == "https" else 18081),
+            port=parsed.port or (443 if parsed.scheme == "https" else default_port),
             path=parsed.path or "/json_rpc",
             username=parsed.username,
             password=parsed.password,
+            rpc_type=rpc_type,
         )
 
 
@@ -948,6 +957,21 @@ def _load_default_nodes():
         return load_nodes_from_config()
     except:
         return get_fallback_nodes()
+
+def create_wallet_transport(port: int = 18082, host: str = "127.0.0.1") -> MCPTransport:
+    """Create a transport instance for wallet RPC."""
+    config = MoneroRPCConfig(
+        host=host,
+        port=port,
+        rpc_type="wallet"
+    )
+    return MCPTransport(config)
+
+
+def create_daemon_transport(nodes: Optional[List[MoneroNode]] = None) -> MCPTransport:
+    """Create a transport instance for daemon RPC with multi-node support."""
+    return get_multi_node_transport(nodes)
+
 
 # Default nodes loaded from configuration (but cache system preferred)
 DEFAULT_MONERO_NODES = _load_default_nodes()
