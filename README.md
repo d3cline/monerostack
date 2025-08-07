@@ -1,3 +1,7 @@
+# This code is dangrous vibe coded and not complete, use at your own risk, do not send XMR yet. 
+# Much more testing is required.
+# this is a proof of concept, you have been warned!!!
+
 # Django MCP ↔ Monero Bridge
 
 > **Say it, ship it, stack the sats.**  
