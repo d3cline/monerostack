@@ -364,6 +364,24 @@ def get_fallback_nodes() -> List[MoneroNode]:
     ]
 
 
+def get_testnet_nodes() -> List[MoneroNode]:
+    """A list of public Monero testnet nodes."""
+    return [
+        MoneroNode(
+            name="community-nodes-testnet",
+            url="http://testnet.community.nodes.monero.org:28081/json_rpc",
+            description="Community-provided testnet node",
+            priority=0
+        ),
+        MoneroNode(
+            name="ditatompel-testnet",
+            url="http://testnet.xmr.ditatompel.com:28081/json_rpc",
+            description="Testnet node by ditatompel",
+            priority=1
+        ),
+    ]
+
+
 def fetch_nodes_from_monero_fail() -> List[MoneroNode]:
     """
     Fetch the most secure and reliable nodes from monero.fail API.
@@ -727,6 +745,22 @@ class MCPTransport:
             tried_nodes.add(current_node_name)
             
             try:
+                # Handle get_height via REST-like endpoint as it seems to fail on JSON-RPC for some public nodes
+                if method == "get_height":
+                    rest_url = self.config.url.replace('/json_rpc', '/getheight')
+                    try:
+                        response = self.session.get(
+                            rest_url,
+                            timeout=self.config.timeout,
+                        )
+                        response.raise_for_status()
+                        # The REST-like endpoints return the result directly
+                        logger.debug(f"REST call to {method} completed successfully")
+                        return response.json()
+                    except (requests.RequestException, ValueError) as e:
+                        logger.warning(f"REST call to {rest_url} failed, falling back to JSON-RPC: {e}")
+                        # Fallback to JSON-RPC call below if REST-like call fails
+
                 response = self.session.post(
                     self.config.url,
                     json=payload,

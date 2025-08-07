@@ -90,11 +90,13 @@ class MoneroTools(MCPToolset):
         super().__init__()
         self._custom_nodes = custom_nodes
         self._api_instance = None
+        self._network = "mainnet"
 
     def monero(
         self,
         action: Literal["get_balance", "get_address", "create_address", "transfer", "get_transfers", "get_info", "get_height", "get_last_block_header", "get_block"],
         payload: Any | None = None,
+        network: str = "mainnet",
     ):
         """
         ---
@@ -113,6 +115,11 @@ class MoneroTools(MCPToolset):
                     enum: [get_balance, get_address, create_address, transfer, get_transfers, get_info, get_height, get_last_block_header, get_block]
                 payload:
                     type: [object, "null"]
+                network:
+                    type: string
+                    enum: ["mainnet", "testnet"]
+                    default: "mainnet"
+                    description: "The Monero network to use (mainnet or testnet)."
             required: [action]
 
         actions:
@@ -296,6 +303,11 @@ class MoneroTools(MCPToolset):
                         }
         ...
         """
+        # If network changes, invalidate the API instance to reconnect
+        if self._network != network:
+            self._network = network
+            self._api_instance = None
+        
         # Create a dispatch table for API calls
         dispatch = {
             "get_balance":    lambda p: self._api().get_balance(p),
@@ -495,23 +507,18 @@ class MoneroTools(MCPToolset):
         except Exception as e:
             end_time = time.time()
             test_duration = end_time - start_time
-            
-            return {
-                "node_name": node_name,
-                "is_connected": False,
-                "test_duration": round(test_duration, 2),
-                "error": str(e),
-                "connection_quality": "Failed"
-            }
+
 
     def _api(self) -> MoneroAPI:
         # Use cached instance or create new one with custom nodes if provided
         if self._api_instance is None:
-            logger.info("Creating new MoneroAPI instance")
-            self._api_instance = MoneroAPI(nodes=self._custom_nodes)
-            if self._api_instance.node_manager:
-                nodes = [node.name for node in self._api_instance.node_manager.nodes]
-                logger.info(f"MoneroAPI initialized with nodes: {nodes}")
-            else:
-                logger.info("MoneroAPI initialized with single node configuration")
+            nodes = self._custom_nodes
+            if not nodes:
+                # No custom nodes, use default from utils
+                from . import utils
+                if self._network == "testnet":
+                    nodes = utils.get_testnet_nodes()
+                else:
+                    nodes = utils.load_nodes_from_config()
+            self._api_instance = MoneroAPI(nodes=nodes)
         return self._api_instance
