@@ -1,6 +1,8 @@
 # This code is dangrous vibe coded and not complete, use at your own risk, do not send XMR yet. 
 # Much more testing is required.
 # this is a proof of concept, you have been warned!!!
+# Why? this is why...
+<img width="588" height="622" alt="image" src="https://github.com/user-attachments/assets/9f6c5504-3a95-4631-99f0-85edb25b8e84" />
 
 # Django MCP ↔ Monero Bridge
 
