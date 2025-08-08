@@ -1,22 +1,11 @@
-import json
 import logging
-import os
-import subprocess
-import sys
-from pathlib import Path
-from typing import Any, Dict, Literal, List, Optional
+from typing import Any, Dict, Literal, Optional
 
 from mcp_server import MCPToolset
 
-from .utils import (
-    MCPTransport,
-    MoneroRPCConfig,
-    create_daemon_transport,
-    create_wallet_transport,
-)
+from .utils import MCPTransport, MoneroRPCConfig, create_daemon_transport, create_wallet_transport
 
 logger = logging.getLogger("mcp.monero")
-
 
 # Minimal local-only Monero RPC Client
 class MoneroAPI:
@@ -32,16 +21,22 @@ class MoneroAPI:
             wcfg = MoneroRPCConfig.from_url(wallet_rpc_url, rpc_type="wallet")
             self.wallet_transport = MCPTransport(wcfg)
 
-    def _rpc_call(self, method: str, params: Optional[Dict[str, Any]] = None, *, use_wallet: bool = False) -> Dict[str, Any]:
+    def _rpc_call(self, method: str, params: Any = None, *, use_wallet: bool = False) -> Dict[str, Any]:
         if use_wallet:
             if not self.wallet_transport:
                 self.wallet_transport = create_wallet_transport()
             return self.wallet_transport.call(method, params)
         return self.daemon_transport.call(method, params)
 
-    # Daemon methods
+    # --- Daemon methods (node) ---
     def get_info(self) -> dict:
         return self._rpc_call("get_info")
+
+    def get_version(self) -> dict:
+        return self._rpc_call("get_version")
+
+    def get_block_count(self) -> dict:
+        return self._rpc_call("get_block_count")
 
     def get_daemon_height(self) -> dict:
         return self.daemon_transport.get_plain("/get_height")
@@ -52,18 +47,44 @@ class MoneroAPI:
     def get_block(self, data: Dict[str, Any]) -> dict:
         return self._rpc_call("get_block", data)
 
-    # Wallet RPC Methods
-    def create_wallet(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("create_wallet", data, use_wallet=True)
+    def get_block_header_by_height(self, height: int) -> dict:
+        return self._rpc_call("get_block_header_by_height", {"height": height})
 
-    def restore_deterministic_wallet(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("restore_deterministic_wallet", data, use_wallet=True)
+    def get_block_header_by_hash(self, block_hash: str) -> dict:
+        return self._rpc_call("get_block_header_by_hash", {"hash": block_hash})
 
-    def open_wallet(self, data: Dict[str, Any]) -> dict:
-        return self._rpc_call("open_wallet", data, use_wallet=True)
+    def get_block_headers_range(self, start_height: int, end_height: int) -> dict:
+        return self._rpc_call("get_block_headers_range", {"start_height": start_height, "end_height": end_height})
 
-    def close_wallet(self) -> dict:
-        return self._rpc_call("close_wallet", {}, use_wallet=True)
+    def on_get_block_hash(self, height: int) -> dict:
+        # This method expects positional params (array)
+        return self._rpc_call("on_get_block_hash", [height])
+
+    def get_transactions(self, tx_hashes: list[str], decode_as_json: bool = True, prune: bool = False) -> dict:
+        # Non-JSON-RPC endpoint
+        payload = {"txs_hashes": tx_hashes, "decode_as_json": decode_as_json, "prune": prune}
+        return self.daemon_transport.post_plain("/get_transactions", payload)
+
+    def get_transaction_pool(self) -> dict:
+        return self.daemon_transport.get_plain("/get_transaction_pool")
+
+    def get_connections(self) -> dict:
+        return self.daemon_transport.get_plain("/get_connections")
+
+    def get_peer_list(self) -> dict:
+        return self.daemon_transport.get_plain("/get_peer_list")
+
+    def sync_info(self) -> dict:
+        return self._rpc_call("sync_info")
+
+    def hard_fork_info(self) -> dict:
+        return self._rpc_call("hard_fork_info")
+
+    def get_fee_estimate(self, grace_blocks: Optional[int] = None) -> dict:
+        params = {"grace_blocks": grace_blocks} if grace_blocks is not None else None
+        return self._rpc_call("get_fee_estimate", params)
+
+    # --- Wallet RPC Methods (no creation/open/close here) ---
 
     def get_balance(self, data: Optional[Dict[str, Any]] = None) -> dict:
         return self._rpc_call("get_balance", data or {}, use_wallet=True)
@@ -107,110 +128,148 @@ class MoneroAPI:
     def split_integrated_address(self, data: Dict[str, Any]) -> dict:
         return self._rpc_call("split_integrated_address", data, use_wallet=True)
 
-
-# Wallet Manager delegating to Django management commands
-class WalletManager:
-    def __init__(self, wallet_dir: Optional[str] = None):
-        self.wallet_dir = wallet_dir or os.path.expanduser("~/.monero/wallets")
-
-    def ensure_wallet_dir(self) -> None:
-        os.makedirs(self.wallet_dir, mode=0o700, exist_ok=True)
-
-    def get_wallet_path(self, wallet_name: str) -> str:
-        return str(Path(self.wallet_dir) / wallet_name)
-
-    def wallet_exists(self, wallet_name: str) -> bool:
-        base = Path(self.get_wallet_path(wallet_name))
-        return base.exists() or (base.with_suffix(".keys").exists())
-
-    def _manage_py(self) -> Path:
-        return Path(__file__).resolve().parents[1] / "manage.py"
-
-    def start_wallet_rpc(self, wallet_name: Optional[str] = None, password: Optional[str] = None, port: Optional[int] = None) -> Dict[str, Any]:
-        cmd = [sys.executable, str(self._manage_py()), "start_wallet_rpc"]
-        if wallet_name:
-            cmd += ["--wallet", wallet_name]
-        if password:
-            cmd += ["--password", password]
-        if port:
-            cmd += ["--port", str(port)]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        out, err = proc.communicate(timeout=20)
-        if proc.returncode != 0:
-            raise RuntimeError(f"start_wallet_rpc failed: {err or out}")
-        try:
-            return json.loads(out.strip())
-        except json.JSONDecodeError:
-            return {"status": "started", "raw": out.strip()}
-
-    def stop_wallet_rpc(self) -> Dict[str, Any]:
-        cmd = [sys.executable, str(self._manage_py()), "stop_wallet_rpc"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        out, err = proc.communicate(timeout=20)
-        if proc.returncode != 0:
-            raise RuntimeError(f"stop_wallet_rpc failed: {err or out}")
-        try:
-            return json.loads(out.strip())
-        except json.JSONDecodeError:
-            return {"status": "stopped", "raw": out.strip()}
-
-    def list_wallets(self) -> List[str]:
-        self.ensure_wallet_dir()
-        names: List[str] = []
-        for p in Path(self.wallet_dir).glob("*.keys"):
-            names.append(p.stem)
-        return sorted(list(set(names)))
-
-
 # MCP Toolset
 class MoneroTools(MCPToolset):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._api_client = MoneroAPI()
-        self._wallet_mgr = WalletManager()
 
-    # Daemon tool
+    # Node/daemon tool
     def monero(
         self,
-        action: Literal["get_info", "get_height", "get_last_block_header", "get_block", "get_node_status"],
+        action: Literal[
+            "status",
+            "get_node_status",  # alias for status
+            "get_info",
+            "height",
+            "get_height",  # alias for height
+            "block_count",
+            "last_block_header",
+            "block_by_height",
+            "block_by_hash",
+            "block_hash",
+            "headers_range",
+            "get_block",  # legacy alias
+            "tx",
+            "tx_pool",
+            "sync_info",
+            "fee_estimate",
+            "hard_fork_info",
+            "version",
+            "connections",
+            "peers",
+        ],
         payload: Any | None = None,
     ):
+        """Monero node/daemon tool (read-only diagnostics and lookups).
+
+    Actions (payload -> result):
+    - status|get_node_status: null -> { rpc, ok, height?, info }
+    - get_info: null -> get_info
+    - height|get_height: null -> { height }
+    - block_count: null -> { count }
+    - last_block_header: null -> get_last_block_header
+    - block_by_height: { height:int } -> get_block
+    - block_by_hash: { hash:str } -> get_block
+    - block_hash: { height:int } -> { hash }
+    - headers_range: { start_height:int, end_height:int } -> get_block_headers_range
+    - get_block (legacy): { height:int } | { hash:str } -> get_block
+    - tx: { hash|txid:str } or { hashes:[str] } -> /get_transactions
+    - tx_pool: null -> /get_transaction_pool
+    - sync_info: null -> sync_info
+    - fee_estimate: { grace_blocks?:int } -> get_fee_estimate
+    - hard_fork_info: null -> hard_fork_info
+    - version: null -> get_version
+    - connections: null -> /get_connections
+    - peers: null -> /get_peer_list
+
+    Raises ValueError for invalid payloads. Transport/RPC failures bubble up.
+    """
         api = self._api_client
-        if action == "get_info":
-            return api.get_info()
-        if action == "get_height":
-            return api.get_daemon_height()
-        if action == "get_last_block_header":
-            return api.get_last_block_header()
-        if action == "get_block":
-            if not isinstance(payload, dict):
-                raise ValueError("payload must be a dict with 'height' or 'hash'")
-            return api.get_block(payload)
-        if action == "get_node_status":
+        if action == "status" or action == "get_node_status":
             ok = True
-            info = {}
+            info: dict[str, Any] = {}
             try:
                 info = api.get_info()
             except Exception as e:
                 ok = False
                 info = {"error": str(e)}
+            height = None
+            if ok:
+                try:
+                    h = api.get_daemon_height()
+                    height = h.get("height")
+                except Exception:
+                    height = None
             return {
-                "local": True,
                 "rpc": api.daemon_transport.config.rpc_url,
                 "ok": ok,
+                "height": height,
                 "info": info,
             }
+        if action == "get_info":
+            return api.get_info()
+        if action == "height" or action == "get_height":
+            return api.get_daemon_height()
+        if action == "block_count":
+            return api.get_block_count()
+        if action == "last_block_header":
+            return api.get_last_block_header()
+        if action == "block_by_height":
+            if not isinstance(payload, dict) or "height" not in payload:
+                raise ValueError("payload must be a dict with 'height'")
+            return api.get_block({"height": int(payload["height"])})
+        if action == "block_by_hash":
+            if not isinstance(payload, dict) or "hash" not in payload:
+                raise ValueError("payload must be a dict with 'hash'")
+            return api.get_block({"hash": str(payload["hash"])})
+        if action == "block_hash":
+            if not isinstance(payload, dict) or "height" not in payload:
+                raise ValueError("payload must be a dict with 'height'")
+            return api.on_get_block_hash(int(payload["height"]))
+        if action == "headers_range":
+            if not isinstance(payload, dict) or not {"start_height", "end_height"} <= set(payload.keys()):
+                raise ValueError("payload must be a dict with 'start_height' and 'end_height'")
+            return api.get_block_headers_range(int(payload["start_height"]), int(payload["end_height"]))
+        if action == "get_block":  # legacy alias
+            if not isinstance(payload, dict) or not ({"height"} <= set(payload.keys()) or {"hash"} <= set(payload.keys())):
+                raise ValueError("payload must be a dict with 'height' or 'hash'")
+            return api.get_block(payload)
+        if action == "tx":
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be a dict with 'hash' or 'txid' (string) or 'hashes' (list)")
+            if "hashes" in payload and isinstance(payload["hashes"], list):
+                hashes = [str(h) for h in payload["hashes"]]
+            else:
+                h = payload.get("hash") or payload.get("txid")
+                if not h or not isinstance(h, (str, bytes)):
+                    raise ValueError("Provide 'hash' or 'txid' as a string, or 'hashes' as a list")
+                hashes = [h.decode() if isinstance(h, bytes) else h]
+            return api.get_transactions(hashes)
+        if action == "tx_pool":
+            return api.get_transaction_pool()
+        if action == "sync_info":
+            return api.sync_info()
+        if action == "fee_estimate":
+            grace = None
+            if isinstance(payload, dict):
+                grace = payload.get("grace_blocks")
+            return api.get_fee_estimate(grace)
+        if action == "hard_fork_info":
+            return api.hard_fork_info()
+        if action == "version":
+            return api.get_version()
+        if action == "connections":
+            return api.get_connections()
+        if action == "peers":
+            return api.get_peer_list()
         raise ValueError(f"Unsupported monero action: {action}")
 
-    # Wallet tool
+    # Wallet tool (no creation/open/close or RPC lifecycle here)
     def wallet(
         self,
         action: Literal[
-            "create",
-            "restore",
-            "open",
-            "close",
             "balance",
             "address",
             "create_address",
@@ -224,21 +283,34 @@ class MoneroTools(MCPToolset):
             "query_key",
             "integrated_address",
             "split_integrated",
-            "list",
-            "start_rpc",
-            "stop_rpc",
+            "get_height",
         ],
         payload: Any | None = None,
     ):
+        """Monero wallet tool for TX and queries (no lifecycle here).
+
+    Lifecycle (create/open/close/start/stop) is managed via Django
+    management commands (create_wallet, start_wallet_rpc, stop_wallet_rpc).
+
+    Actions (payload -> result):
+    - balance: { account_index?:int, address_indices?:[int] } -> get_balance
+    - address: { account_index?:int, address_index?:int|[int] } -> get_address
+    - create_address: { account_index:int, label?:str } -> create_address
+    - transfer: { destinations:[{address,amount}], ... } -> transfer
+    - transfer_split: like transfer -> transfer_split
+    - sweep_all: { address:str, account_index?:int, subaddr_indices?:[int] } -> sweep_all
+    - transfers: standard get_transfers filters -> get_transfers
+    - transfer_by_txid: { txid:str, account_index?:int } -> get_transfer_by_txid
+    - refresh: { start_height?:int } -> refresh
+    - rescan: null -> rescan_blockchain
+    - query_key: { key_type:"mnemonic"|"view_key"|"spend_key" } -> query_key
+    - integrated_address: { payment_id?:str } -> make_integrated_address
+    - split_integrated: { integrated_address:str } -> split_integrated_address
+    - get_height: null -> { height }
+
+    Raises ValueError for invalid payloads. Transport/RPC failures bubble up.
+    """
         api = self._api_client
-        if action == "create":
-            return api.create_wallet(payload or {})
-        if action == "restore":
-            return api.restore_deterministic_wallet(payload or {})
-        if action == "open":
-            return api.open_wallet(payload or {})
-        if action == "close":
-            return api.close_wallet()
         if action == "balance":
             return api.get_balance(payload or {})
         if action == "address":
@@ -265,17 +337,8 @@ class MoneroTools(MCPToolset):
             return api.make_integrated_address(payload or {})
         if action == "split_integrated":
             return api.split_integrated_address(payload or {})
-        if action == "list":
-            return {"wallets": self._wallet_mgr.list_wallets()}
-        if action == "start_rpc":
-            payload = payload or {}
-            return self._wallet_mgr.start_wallet_rpc(
-                wallet_name=payload.get("wallet"),
-                password=payload.get("password"),
-                port=payload.get("port"),
-            )
-        if action == "stop_rpc":
-            return self._wallet_mgr.stop_wallet_rpc()
+        if action == "get_height":
+            return api.get_wallet_height()
         raise ValueError(f"Unsupported wallet action: {action}")
 
     # Convenience helpers

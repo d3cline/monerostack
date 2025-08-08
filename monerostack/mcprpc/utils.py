@@ -117,6 +117,22 @@ class MCPTransport:
         except ValueError:
             raise MCPTransportError(f"Non-JSON response from {url}")
 
+    def post_plain(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """POST to non-JSON-RPC endpoints that expect/return JSON (e.g., /get_transactions)."""
+        url = f"{self.config.base_url}{path}"
+        try:
+            resp = self._session.post(
+                url,
+                data=json.dumps(payload),
+                headers={"Content-Type": "application/json"},
+                timeout=self.config.timeout,
+            )
+            return resp.json()
+        except requests.RequestException as e:
+            raise MCPTransportError(f"HTTP error calling {url}: {e}") from e
+        except ValueError:
+            raise MCPTransportError(f"Non-JSON response from {url}")
+
     def test_connection(self) -> bool:
         try:
             if self.config.rpc_type == "wallet":
