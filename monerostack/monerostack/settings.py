@@ -26,9 +26,9 @@ MONERO_REGION = os.getenv("MONERO_REGION", "us")
 
 MONERO_NODES = {
     # All entries must be full JSON-RPC endpoints (end with /json_rpc)
-    "us":      "https://xmr-node-usa.cakewallet.com:8443/json_rpc",
-    "eu":      "https://xmr-node-eu.cakewallet.com:8443/json_rpc",
-    "default": "https://xmr-node.cakewallet.com:8443/json_rpc",
+    "us":      "https://xmr-node.cakewallet.com:18081/json_rpc",
+    "eu":      "https://xmr-node-eu.cakewallet.com:18081/json_rpc",
+    "default": "https://xmr-node.cakewallet.com:18081/json_rpc",
 }
 
 # Requests timeout for node calls
