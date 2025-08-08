@@ -125,6 +125,40 @@ class MoneroConfig(MCPToolset):
         settings.MONERO_REGION = region
         return {"status": "ok", "region": region, "url": nodes[region]}
 
+    def list_regions(self) -> dict:
+        """List all available regions and their JSON-RPC URLs from settings.MONERO_NODES."""
+        nodes = getattr(settings, "MONERO_NODES", {})
+        # Sort keys for stable output
+        regions = {k: nodes[k] for k in sorted(nodes.keys())}
+        return {
+            "regions": regions,
+            "default_region": getattr(settings, "MONERO_REGION", "us"),
+        }
+
+    def manifest(self) -> dict:
+        """
+        Return a lightweight MCP manifest-style config block so clients can discover
+        supported configuration at runtime (not persisted). Includes:
+        - env: MONERO_REGION (current/default)
+        - options: available region keys (settings.MONERO_NODES)
+        - timeout: MONERO_RPC_TIMEOUT
+        """
+        nodes = getattr(settings, "MONERO_NODES", {})
+        return {
+            "name": getattr(settings, "MCP_SERVER", {}).get("NAME", "monero-mcp"),
+            "description": getattr(settings, "MCP_SERVER", {}).get("DESCRIPTION", "Monero MCP bridge"),
+            "config": {
+                "env": {
+                    "MONERO_REGION": getattr(settings, "MONERO_REGION", "us"),
+                    "MONERO_RPC_TIMEOUT": getattr(settings, "MONERO_RPC_TIMEOUT", 20),
+                },
+                "options": {
+                    "regions": sorted(list(nodes.keys())),
+                },
+                "nodes": nodes,
+            },
+        }
+
 
 # ── Optional secondary MCP endpoint (mirrors example pattern) ────────────────
 alt_mcp = DjangoMCP(name="monero-alt")
