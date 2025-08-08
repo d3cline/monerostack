@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monero MCP Server</title>
+  <meta name="description" content="MoneroStack exposes Monero JSON-RPC via Model Context Protocol (MCP) for AI agents and IDEs.">
+  <!-- Open Graph -->
+  <meta property="og:title" content="MoneroStack — MCP Endpoint for Monero">
+  <meta property="og:description" content="MoneroStack exposes Monero JSON-RPC via Model Context Protocol (MCP) for AI agents and IDEs.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://opalstack.com/opal_monero_1.png" />
+  <meta property="og:image:alt" content="MoneroStack MCP share image" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="MoneroStack — MCP Endpoint for Monero">
+  <meta name="twitter:description" content="Monero JSON-RPC as MCP tools for agents and IDEs.">
+  <meta name="twitter:image" content="https://opalstack.com/opal_monero_1.png" />
+  <meta name="theme-color" content="#ff6600">
   <style>
     body {
       background-color: #f7f7f7;
@@ -39,6 +54,16 @@
       border-radius: 4px;
       font-family: monospace;
     }
+    /* Ensure code blocks inside <pre> inherit the dark theme */
+    pre { background: #111 !important; color: #f3f3f3 !important; }
+    pre code {
+      background: #111 !important; /* force black to match pre */
+      color: #f3f3f3 !important;   /* force light text */
+      display: block;
+      padding: 0;                  /* pre already has padding */
+      border-radius: 0;            /* avoid double rounding */
+      white-space: pre;            /* ensure proper formatting */
+    }
     nav {
       margin-top: 1rem;
     }
@@ -69,10 +94,30 @@
   </header>
 
   <nav>
-    <a href="https://code.visualstudio.com/docs/copilot/mcp" target="_blank">VS Code MCP Docs</a>
-    <a href="https://claude.ai/chats" target="_blank">Claude MCP</a>
-    <a href="https://zed.dev" target="_blank">Zed MCP</a>
+    <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers" target="_blank">VS Code MCP Docs</a>
+    <a href="https://modelcontextprotocol.io/quickstart/user" target="_blank">Claude MCP</a>
+    <a href="https://zed.dev/docs/ai/mcp" target="_blank">Zed MCP</a>
   </nav>
+
+  <section id="docs" style="margin-top:2rem; max-width: 700px;">
+    <h2 style="margin-top:0">MCP configuration (mcp.json)</h2>
+    <p>Add this to your MCP host configuration and adjust the URL/port if needed.</p>
+    <pre style="text-align:left; background:#111; color:#f3f3f3; padding:1rem; border-radius:8px; overflow:auto"><code>{
+  "servers": {
+		"monerostack": {
+			"url": "https://monerostack.d3cline.net/mcp",
+			"type": "http"
+		}
+  }
+</code></pre>
+  </section>
+
+  <section id="donate" style="margin-top:2rem; max-width: 700px;">
+    <h2>Donate XMR</h2>
+    <p>If you find MoneroStack useful, consider supporting development:</p>
+    <p style="margin-bottom:0.25rem">Monero (XMR) address:</p>
+    <pre style="text-align:left; background:#111; color:#f3f3f3; padding:1rem; border-radius:8px; overflow:auto"><code>88Up8HAFvsmZ5Avpf8n9H3ERcjTVvRHSr2nAschx2HYXJFcHXv9h2JWKuuCkBRgUPJZEZj9wjTsvyTS1vBBSuhBnCkqGdo8</code></pre>
+  </section>
 
   <footer>
     Brought to you by <a href="https://www.opalstack.com" target="_blank"><strong>Opalstack</strong></a> — Private, powerful, developer-friendly hosting.
