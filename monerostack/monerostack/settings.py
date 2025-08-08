@@ -10,6 +10,30 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os 
+# ── MCP server config ─────────────────────────────────────────────────────────
+# django-mcp-server will import mcprpc.mcp and register toolsets at /mcp
+MCP_SERVER = {
+    "NAME": "monero-mcp",
+    "DESCRIPTION": "Monero MCP bridge using Cake Wallet public nodes (no local daemon)",
+    # If you add other tool modules, list them here (comma-separated string supported too)
+    "TOOLS_MODULE": "mcprpc.mcp",
+}
+
+# ── Monero (Cake) region config ──────────────────────────────────────────────
+# Region can be: "us", "eu", or "default" (global)
+MONERO_REGION = os.getenv("MONERO_REGION", "us")
+
+MONERO_NODES = {
+    # All entries must be full JSON-RPC endpoints (end with /json_rpc)
+    "us":      "https://xmr-node-usa.cakewallet.com:8443/json_rpc",
+    "eu":      "https://xmr-node-eu.cakewallet.com:8443/json_rpc",
+    "default": "https://xmr-node.cakewallet.com:8443/json_rpc",
+}
+
+# Requests timeout for node calls
+MONERO_RPC_TIMEOUT = int(os.getenv("MONERO_RPC_TIMEOUT", "20"))
+
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
