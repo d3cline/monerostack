@@ -26,23 +26,22 @@ MONERO_REGION = os.getenv("MONERO_REGION", "us")
 
 MONERO_NODES = {
     # All entries must be full JSON-RPC endpoints (end with /json_rpc)
-    "us":      "https://node3-us.monero.love:18081/json_rpc",
-    "eu":      "https://node2-eu.monero.love:18089/json_rpc",
+    #"us":      "https://node3-us.monero.love:18081/json_rpc",
+    #"eu":      "https://node2-eu.monero.love:18089/json_rpc",
     "cake":    "https://xmr-node.cakewallet.com:18081/json_rpc",
-    "singapore": "https://singapore.node.xmr.pm:18089/json_rpc",
-    "monerodevs1": "https://node.monerodevs.org:18089/json_rpc",
-    "monerodevs2": "https://node2.monerodevs.org:18089/json_rpc",
-    "monerodevs3": "https://node3.monerodevs.org:18089/json_rpc",
+    #"singapore": "https://singapore.node.xmr.pm:18089/json_rpc",
+    #"monerodevs1": "https://node.monerodevs.org:18089/json_rpc",
+    #"monerodevs2": "https://node2.monerodevs.org:18089/json_rpc",
+    #"monerodevs3": "https://node3.monerodevs.org:18089/json_rpc",
     "ravfx1":  "https://ravfx.its-a-node.org:18081/json_rpc",
     "ravfx2":  "https://ravfx2.its-a-node.org:18089/json_rpc",
-    "rucknium": "https://rucknium.me:18081/json_rpc",
-    "selsta1": "https://selsta1.featherwallet.net:18081/json_rpc",
-    "selsta2": "https://selsta2.featherwallet.net:18081/json_rpc",
-    "seth":    "https://node.sethforprivacy.com:18089/json_rpc",
-    "stormycloud": "https://xmr.stormycloud.org:18089/json_rpc",
-    "trocador": "https://node.trocador.app:18089/json_rpc",
-    "xmr.ru":  "https://node.xmr.ru:18081/json_rpc",
-    "default": "https://xmr-node.cakewallet.com:18081/json_rpc",
+    #"rucknium": "https://rucknium.me:18081/json_rpc",
+    #"selsta1": "https://selsta1.featherwallet.net:18081/json_rpc",
+    #"selsta2": "https://selsta2.featherwallet.net:18081/json_rpc",
+    #"seth":    "https://node.sethforprivacy.com:18089/json_rpc",
+    #"stormycloud": "https://xmr.stormycloud.org:18089/json_rpc",
+    #"trocador": "https://node.trocador.app:18089/json_rpc",
+    #"xmr.ru":  "https://node.xmr.ru:18081/json_rpc",
 }
 
 # Requests timeout for node calls
