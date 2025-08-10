@@ -22,7 +22,7 @@ MCP_SERVER = {
 
 # ── Monero (Cake) region config ──────────────────────────────────────────────
 # Region can be: "us", "eu", or "default" (global)
-MONERO_REGION = os.getenv("MONERO_REGION", "us")
+MONERO_REGION = os.getenv("MONERO_REGION", "cake")
 
 MONERO_NODES = {
     # All entries must be full JSON-RPC endpoints (end with /json_rpc)
