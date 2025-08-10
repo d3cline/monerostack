@@ -19,7 +19,7 @@ from mcp_server import MCPToolset  # (we're not using DRF publishers in this min
 # ── Low-level JSON-RPC helper ────────────────────────────────────────────────
 def _daemon_url() -> str:
     nodes = getattr(settings, "MONERO_NODES", {})
-    region = getattr(settings, "MONERO_REGION", "us")
+    region = getattr(settings, "MONERO_REGION", "cake")
     url = nodes.get(region) or nodes.get("default")
     if not url:
         raise RuntimeError("MONERO_NODES / MONERO_REGION misconfigured; no node URL available.")
@@ -111,7 +111,7 @@ class MoneroConfig(MCPToolset):
 
     def get_region(self) -> dict:
         """Return the current region and URL."""
-        region = getattr(settings, "MONERO_REGION", "us")
+        region = getattr(settings, "MONERO_REGION", "cake")
         return {"region": region, "url": _daemon_url()}
 
     def set_region(self, region: str) -> dict:
@@ -132,7 +132,7 @@ class MoneroConfig(MCPToolset):
         regions = {k: nodes[k] for k in sorted(nodes.keys())}
         return {
             "regions": regions,
-            "default_region": getattr(settings, "MONERO_REGION", "us"),
+            "default_region": getattr(settings, "MONERO_REGION", "cake"),
         }
 
     def manifest(self) -> dict:
@@ -149,7 +149,7 @@ class MoneroConfig(MCPToolset):
             "description": getattr(settings, "MCP_SERVER", {}).get("DESCRIPTION", "Monero MCP bridge"),
             "config": {
                 "env": {
-                    "MONERO_REGION": getattr(settings, "MONERO_REGION", "us"),
+                    "MONERO_REGION": getattr(settings, "MONERO_REGION", "cake"),
                     "MONERO_RPC_TIMEOUT": getattr(settings, "MONERO_RPC_TIMEOUT", 20),
                 },
                 "options": {
